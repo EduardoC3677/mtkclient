@@ -22,7 +22,6 @@ from mtkclient.Library.thread_handling import writedata
 from mtkclient.Library.DA.xmlflash.xml_cmd import XMLCmd, BootModes
 from mtkclient.Library.DA.xmlflash.extension.v6 import XmlFlashExt
 from mtkclient.Library.Auth.sla import generate_da_sla_signature
-from mtkclient.Library.Exploit.carbonara import Carbonara
 from mtkclient.Library.Exploit.heapbait import Heapbait
 
 
@@ -105,7 +104,11 @@ class DAXML(metaclass=LogBase):
         self.generatekeys = self.mtk.config.generatekeys
         if self.generatekeys:
             self.mtk.daloader.patch = True
-        self.carbonara = Carbonara(self.mtk, loglevel)
+        try:
+            from mtkclient.Library.Exploit.carbonara import Carbonara
+            self.carbonara = Carbonara(self.mtk, loglevel)
+        except Exception:
+            self.carbonara = None
         self.xmlft = XmlFlashExt(self.mtk, self, loglevel)
 
     def xread(self):
@@ -615,8 +618,9 @@ class DAXML(metaclass=LogBase):
             self.heapbait = Heapbait(self.mtk, self.loglevel)
 
             if not self.mtk.daloader.patch and not self.mtk.config.stock:
-                if self.mtk.config.target_config["sbc"] and not self.carbonara.check_for_carbonara_patched(
-                        self.daconfig.da1):
+                if (self.carbonara is not None and
+                        self.mtk.config.target_config["sbc"] and
+                        not self.carbonara.check_for_carbonara_patched(self.daconfig.da1)):
                     loaded = self.carbonara.patchda1_and_upload_da2()
                     if loaded:
                         self.mtk.daloader.patch = True
