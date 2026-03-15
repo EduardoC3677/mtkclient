@@ -615,18 +615,11 @@ class DAXML(metaclass=LogBase):
             self.heapbait = Heapbait(self.mtk, self.loglevel)
 
             if not self.mtk.daloader.patch and not self.mtk.config.stock:
-                if self.carbonara is not None and self.mtk.config.target_config["sbc"]:
-                    with open(self.daconfig.loader, 'rb') as bootldr:
-                        da1offset = self.daconfig.da_loader.region[1].m_buf
-                        da1size = self.daconfig.da_loader.region[1].m_len
-                        bootldr.seek(da1offset)
-                        da1 = bootldr.read(da1size)
-
-                    if self.carbonara.is_vulnerable(da1):
-                        da2 = self.carbonara.run_carbonara(da1, da2, self)
-                        loaded = self.boot_to(da2offset, da2)
-                        if loaded:
-                            self.patch = True
+                if self.mtk.config.target_config["sbc"] and not self.carbonara.check_for_carbonara_patched(
+                        self.daconfig.da1):
+                    loaded = self.carbonara.patchda1_and_upload_da2()
+                    if loaded:
+                        self.mtk.daloader.patch = True
                 elif self.mtk.config.target_config["sbc"] and self.heapbait.is_vulnerable():
                     loaded = self.boot_to(da2offset, da2)
                     if self.heapbait.run_exploit():
