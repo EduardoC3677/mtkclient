@@ -310,6 +310,15 @@ class UsbClass(DeviceClass):
                 self.pid = dev.idProduct
                 self.interface = self.portconfig[dev.idVendor][dev.idProduct]
                 break
+        if self.device is None and devclass != 0:
+            devices = usb.core.find(find_all=True, bDeviceClass=0, backend=self.backend)
+            for dev in list(filter(lambda x: x.idVendor in [0x0E8D, 0x1004, 0x22d9, 0x0FCE], devices)):
+                if dev.idVendor in self.portconfig and dev.idProduct in self.portconfig[dev.idVendor]:
+                    self.device = dev
+                    self.vid = dev.idVendor
+                    self.pid = dev.idProduct
+                    self.interface = self.portconfig[dev.idVendor][dev.idProduct]
+                    break
         if self.device is None:
             self.debug("Couldn't detect the device. Is it connected ?")
             return False
@@ -337,7 +346,7 @@ class UsbClass(DeviceClass):
                     break
 
         self.debug(self.configuration)
-        if self.interface > self.configuration.bNumInterfaces:
+        if self.interface >= self.configuration.bNumInterfaces:
             print("Invalid interface, max number is %d" % self.configuration.bNumInterfaces)
             return False
 
