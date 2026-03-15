@@ -1029,6 +1029,15 @@ class DAXFlash(metaclass=LogBase):
     def set_remote_sec_policy(self, data):
         return self.send_devctrl(self.cmd.SET_REMOTE_SEC_POLICY, data)
 
+    def _get_loader_name(self):
+        """Get the loader file path string for device detection, checking multiple sources."""
+        loader = self.mtk.loader
+        if loader is not None:
+            return loader.lower()
+        if self.daconfig and self.daconfig.loader is not None:
+            return self.daconfig.loader.lower()
+        return ""
+
     def handle_sla(self, da2):
         rsakey = None
         from mtkclient.Library.Auth.sla_keys import da_sla_keys
@@ -1036,7 +1045,8 @@ class DAXFlash(metaclass=LogBase):
             if da2.find(long_to_bytes(key.n)) != -1:
                 rsakey = key
                 break
-        if "_lake" in self.mtk.loader or "_tides" in self.mtk.loader or "_moon" in self.mtk.loader:
+        loader_name = self._get_loader_name()
+        if "_lake" in loader_name or "_tides" in loader_name or "_moon" in loader_name:
             print("Trying lake ....")
             # Xiaomi Redmi 14C
             res = self.get_dev_fw_info()
@@ -1046,9 +1056,9 @@ class DAXFlash(metaclass=LogBase):
                 if self.set_remote_sec_policy(data=sla_signature):
                     print("SLA Signature was accepted.")
                     return True
-        if "motorola" in self.mtk.loader or "lamu" in self.mtk.loader:
+        if "motorola" in loader_name or "lamu" in loader_name or self.config.chipconfig.dacode == 0x6768:
             print("Trying lamu ....")
-            # Motorola G05
+            # Motorola G05 / G15 / G15 Power (lamu) - MT6768
             res = self.get_dev_fw_info()
             if res != b"":
                 sla_signature = bytes.fromhex(
@@ -1056,20 +1066,23 @@ class DAXFlash(metaclass=LogBase):
                 if self.set_remote_sec_policy(data=sla_signature):
                     print("SLA Signature was accepted.")
                     return True
-                data=bytearray(b"\x42"*0x10)
-                for rsakey in da_sla_keys:
-                    if rsakey.vendor == "Motorola":
-                        sla_signature = generate_da_sla_signature(data=data, key=rsakey.key)
+                # Try with challenge data from device firmware info
+                challenge_data = res[4:4 + 0x10]
+                for moto_key in da_sla_keys:
+                    if moto_key.vendor == "Motorola":
+                        sla_signature = generate_da_sla_signature(data=challenge_data, key=moto_key.key)
                         if self.set_remote_sec_policy(data=sla_signature):
                             print("SLA Signature was accepted.")
                             return True
-                        else:
-                            data = res[4:4 + 0x10]
-                            sla_signature = generate_da_sla_signature(data=data, key=rsakey.key)
-                            if self.set_remote_sec_policy(data=sla_signature):
-                                print("SLA Signature was accepted.")
-                                return True
-        if rsakey is None:
+                # Try with fixed padding data
+                fixed_data = bytearray(b"\x42" * 0x10)
+                for moto_key in da_sla_keys:
+                    if moto_key.vendor == "Motorola":
+                        sla_signature = generate_da_sla_signature(data=fixed_data, key=moto_key.key)
+                        if self.set_remote_sec_policy(data=sla_signature):
+                            print("SLA Signature was accepted.")
+                            return True
+        if rsakey is not None:
             res = self.get_dev_fw_info()
             if res != b"":
                 data = res[4:4 + 0x10]
@@ -1077,13 +1090,12 @@ class DAXFlash(metaclass=LogBase):
                 if self.set_remote_sec_policy(data=sla_signature):
                     print("SLA Signature was accepted.")
                     return True
-        else:
-            print("No valid sla key found, trying dummy auth ....")
-            # Xiaomi
-            sla_signature = b"\x00" * 0x100
-            if self.set_remote_sec_policy(data=sla_signature):
-                print("SLA Signature was accepted.")
-                return True
+        print("No valid sla key found, trying dummy auth ....")
+        # Xiaomi
+        sla_signature = b"\x00" * 0x100
+        if self.set_remote_sec_policy(data=sla_signature):
+            print("SLA Signature was accepted.")
+            return True
         return False
 
     def upload_da(self):

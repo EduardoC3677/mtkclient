@@ -985,21 +985,25 @@ class XmlFlashExt(metaclass=LogBase):
                 break
         if seccfg_data is None:
             return False, "Couldn't detect existing seccfg partition. Aborting unlock."
-        if seccfg_data.find(b"\x4D\x4D\x4D\x4D") == -1:
-            return False, "SecCfg is empty. Aborting unlock."
-        if seccfg_data[:4] != pack("<I", 0x4D4D4D4D):
-            return False, "Unknown seccfg partition header. Aborting unlock."
         hwc = self.cryptosetup()
-        if seccfg_data[:0xC] == b"AND_SECCFG_v":
+        has_v4_magic = seccfg_data[:4] == pack("<I", 0x4D4D4D4D)
+        has_v3_magic = seccfg_data[:0xC] == b"AND_SECCFG_v"
+        is_empty = (seccfg_data.find(b"\x4D\x4D\x4D\x4D") == -1 or
+                    seccfg_data[:4] == b"\x00\x00\x00\x00" or
+                    seccfg_data[:4] == b"\xff\xff\xff\xff")
+        if has_v3_magic:
             self.info("Detected V3 Lockstate")
             sc_org = SecCfgV3(hwc, self.mtk, self.custom_sej_hw)
             if not sc_org.parse(seccfg_data):
                 return False, "Device has is either already unlocked or algo is unknown. Aborting."
-        elif seccfg_data[:4] == b"\x4D\x4D\x4D\x4D":
+        elif has_v4_magic:
             self.info("Detected V4 Lockstate")
             sc_org = SecCfgV4(hwc, self.mtk, self.custom_sej_hw)
             if not sc_org.parse(seccfg_data):
                 return False, "Device has is either already unlocked or algo is unknown. Aborting."
+        elif is_empty:
+            self.info("seccfg partition is empty, writing fresh V4 seccfg.")
+            sc_org = SecCfgV4(hwc, self.mtk, self.custom_sej_hw)
         else:
             res = input(
                 "Unknown lockstate or no lockstate. Shall I write a new one ?\n" +
