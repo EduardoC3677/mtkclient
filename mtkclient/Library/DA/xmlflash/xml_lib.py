@@ -618,7 +618,6 @@ class DAXML(metaclass=LogBase):
                 if self.carbonara is not None and self.mtk.config.target_config["sbc"]:
                     with open(self.daconfig.loader, 'rb') as bootldr:
                         da1offset = self.daconfig.da_loader.region[1].m_buf
-                        bootldr.seek(da1offset)
                         da1size = self.daconfig.da_loader.region[1].m_len
                         bootldr.seek(da1offset)
                         da1 = bootldr.read(da1size)
