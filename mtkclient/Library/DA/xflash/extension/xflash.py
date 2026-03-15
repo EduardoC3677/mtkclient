@@ -795,7 +795,9 @@ class XFlashExt(metaclass=LogBase):
         hwc = self.cryptosetup()
         has_v4_magic = seccfg_data[:4] == pack("<I", 0x4D4D4D4D)
         has_v3_magic = seccfg_data[:0xC] == b"AND_SECCFG_v"
-        is_empty = seccfg_data[:4] == b"\x00\x00\x00\x00" or seccfg_data[:4] == b"\xff\xff\xff\xff"
+        is_empty = (seccfg_data[:4] == b"\x00\x00\x00\x00" or
+                    seccfg_data[:4] == b"\xff\xff\xff\xff" or
+                    seccfg_data.find(b"\x4D\x4D\x4D\x4D") == -1)
         if has_v3_magic:
             self.info("Detected V3 Lockstate")
             sc_org = SecCfgV3(hwc, self.mtk, self.custom_sej_hw)

@@ -1033,9 +1033,9 @@ class DAXFlash(metaclass=LogBase):
         """Get the loader file path string for device detection, checking multiple sources."""
         loader = self.mtk.loader
         if loader is not None:
-            return loader.lower()
+            return str(loader).lower()
         if self.daconfig and self.daconfig.loader is not None:
-            return self.daconfig.loader.lower()
+            return str(self.daconfig.loader).lower()
         return ""
 
     def handle_sla(self, da2):
