@@ -182,6 +182,10 @@ class Port(metaclass=LogBase):
                 pass
 
         self.info("Handshake failed after retries")
+        if os.name == 'nt':
+            self.warning("On Windows, [Errno 5] Input/Output Error usually means the USB driver is not "
+                         "correctly installed. Use Zadig (https://zadig.akeo.ie/) to install the WinUSB "
+                         "driver for your MediaTek device. See README-WINDOWS.md for detailed instructions.")
         return False
 
     def handshake(self, maxtries=None, loop=0):
