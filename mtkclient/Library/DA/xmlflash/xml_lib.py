@@ -626,7 +626,10 @@ class DAXML(metaclass=LogBase):
                         da1 = bootldr.read(da1size)
 
                     if self.carbonara.is_vulnerable(da1):
-                        da2 = self.mtk.daloader.patch_da2(da2)
+                        try:
+                            da2 = self.carbonara.run_carbonara(da1, da2, self)
+                        except (AttributeError, NotImplementedError):
+                            da2 = self.mtk.daloader.patch_da2(da2)
                         loaded = self.boot_to(da2offset, da2)
                         if loaded:
                             self.mtk.daloader.patch = True
