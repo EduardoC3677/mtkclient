@@ -207,14 +207,41 @@ class DAconfig(metaclass=LogBase):
         dacode = self.config.chipconfig.dacode
         if dacode in self.dasetup:
             loaders = self.dasetup[dacode]
-            for loader in loaders:
-                if loader.hw_version <= self.config.hwver or self.config.hwver == 0:
-                    if loader.sw_version <= self.config.swver or self.config.swver == 0:
-                        if self.da_loader is None:
+            # Check for mode-specific custom DA (e.g. Motorola G05 uses different DA for BROM vs preloader)
+            preferred_da = None
+            if self.config.is_brom and self.config.chipconfig.custom_da_brom:
+                preferred_da = self.config.chipconfig.custom_da_brom
+            elif not self.config.is_brom and self.config.chipconfig.custom_da:
+                preferred_da = self.config.chipconfig.custom_da
+            if preferred_da:
+                for loader in loaders:
+                    if preferred_da in str(loader.loader):
+                        if loader.hw_version <= self.config.hwver or self.config.hwver == 0:
+                            if loader.sw_version <= self.config.swver or self.config.swver == 0:
+                                if loader.v6:
+                                    self.config.chipconfig.damode = DAmodes.XML
+                                self.da_loader = loader
+                                self.loader = loader.loader
+                                mode = "BROM" if self.config.is_brom else "preloader"
+                                self.info(f"Using {mode}-mode DA: {os.path.basename(self.loader)}")
+                                break
+            if self.da_loader is None:
+                # Skip mode-specific custom DAs intended for a different connection mode
+                skip_da = None
+                if not self.config.is_brom and self.config.chipconfig.custom_da_brom:
+                    skip_da = self.config.chipconfig.custom_da_brom
+                elif self.config.is_brom and self.config.chipconfig.custom_da:
+                    skip_da = self.config.chipconfig.custom_da
+                for loader in loaders:
+                    if skip_da and os.path.basename(str(loader.loader)) == skip_da:
+                        continue
+                    if loader.hw_version <= self.config.hwver or self.config.hwver == 0:
+                        if loader.sw_version <= self.config.swver or self.config.swver == 0:
                             if loader.v6:
                                 self.config.chipconfig.damode = DAmodes.XML
                             self.da_loader = loader
                             self.loader = loader.loader
+                            break
         if self.da_loader is None and dacode != 0x6261:
             self.error("No da_loader config set up")
         self.mtk.daloader.daconfig.da_loader = self.da_loader

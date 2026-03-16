@@ -135,6 +135,19 @@ class SecCfgV4(metaclass=LogBase):
         return True
 
     def create(self, lockflag: str = "unlock"):
+        # Set defaults for fresh seccfg creation (when partition was empty/uninitialized)
+        if self.seccfg_ver is None:
+            self.seccfg_ver = 4
+        if self.seccfg_size is None:
+            self.seccfg_size = 0x1C + 0x20  # header (28 bytes) + SHA256 hash (32 bytes)
+        if self.sboot_runtime is None:
+            self.sboot_runtime = 0
+        if self.lock_state is None:
+            self.lock_state = 1  # Default locked state
+        if self.critical_lock_state is None:
+            self.critical_lock_state = 0
+        if self.hwtype is None:
+            self.hwtype = "SW"
         if lockflag == "lock" and self.lock_state == 1:
             return False, "Device is already locked"
         elif lockflag == "unlock" and self.lock_state == 3:
