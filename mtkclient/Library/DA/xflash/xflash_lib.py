@@ -923,6 +923,13 @@ class DAXFlash(metaclass=LogBase):
                 return True
         return False
 
+    def _is_prepatched_da(self):
+        """Check if the current DA is a pre-patched custom DA (e.g. lamulg.bin for BROM mode)."""
+        return (self.config.is_brom and
+                self.config.chipconfig.custom_da_brom and
+                self.daconfig.loader and
+                self.config.chipconfig.custom_da_brom in str(self.daconfig.loader))
+
     def patch_da(self, da1, da2):
         """ XFlash patch da1 and da2 """
         da1sig_len = self.daconfig.da_loader.region[1].m_sig_len
@@ -932,7 +939,10 @@ class DAXFlash(metaclass=LogBase):
                                                                          self.daconfig.da_loader.v6)
         if hashaddr is not None:
             da1 = self.xft.patch_da1(da1)
-            da2 = self.xft.patch_da2(da2)
+            if self._is_prepatched_da():
+                self.info("Using pre-patched BROM DA, skipping DA2 re-patching.")
+            else:
+                da2 = self.xft.patch_da2(da2)
             da1 = self.mtk.daloader.fix_hash(da1, da2, hashaddr, hashmode, hashlen)
             self.mtk.daloader.patch = True
             self.daconfig.da2 = da2[:hashlen]

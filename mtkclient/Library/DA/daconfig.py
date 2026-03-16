@@ -222,8 +222,8 @@ class DAconfig(metaclass=LogBase):
                                     self.config.chipconfig.damode = DAmodes.XML
                                 self.da_loader = loader
                                 self.loader = loader.loader
-                                self.info(f"Using {'BROM' if self.config.is_brom else 'preloader'}"
-                                          f"-mode DA: {os.path.basename(self.loader)}")
+                                mode = "BROM" if self.config.is_brom else "preloader"
+                                self.info(f"Using {mode}-mode DA: {os.path.basename(self.loader)}")
                                 break
             if self.da_loader is None:
                 for loader in loaders:
