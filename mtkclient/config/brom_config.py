@@ -1464,7 +1464,6 @@ hwconfig = {
         name="MT6768/MT6769",
         description="Helio P65/G85 k68v1",
         loader="mt6768_payload.bin",
-        custom_da="MTK_DA_lamu.bin",
         custom_da_brom="MTK_DA_lamulg.bin"),
     0x788: Chipconfig(
         var1=0xA,
