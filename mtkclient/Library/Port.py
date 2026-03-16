@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import time
+import usb.util
 from binascii import hexlify
 from struct import pack
 from mtkclient.Library.gui_utils import LogBase, logsetup
@@ -131,7 +132,7 @@ class Port(metaclass=LogBase):
         maxinsize = self.cdc.EP_IN.wMaxPacketSize
 
         self.cdc.set_line_coding(921600, 0, 8, 1)
-        self.cdc.setcontrollinestate(rts=True)
+        self.cdc.setcontrollinestate(rts=True, dtr=True)
 
         startcmd = b"\xa0\x0a\x50\x05"
         expected_echo = bytes(~b & 0xFF for b in startcmd)  # Precompute: b'\x5f\xf5\xaf\xfa'
@@ -166,6 +167,12 @@ class Port(metaclass=LogBase):
 
             except Exception as e:  # Includes USBError, timeout, pipe error
                 self.debug(f"Handshake attempt {attempt + 1} failed: {e}")
+                # Clear endpoint halt/stall state after I/O error
+                try:
+                    usb.util.clear_halt(self.cdc.device, self.cdc.EP_OUT)
+                    usb.util.clear_halt(self.cdc.device, self.cdc.EP_IN)
+                except Exception:
+                    pass
                 time.sleep(0.05)
 
             # Flush input buffer before retry

@@ -390,6 +390,17 @@ class UsbClass(DeviceClass):
                                                       custom_match=lambda xe:
                                                       usb.util.endpoint_direction(xe.bEndpointAddress) ==
                                                       usb.util.ENDPOINT_IN)
+            # Clear any stalled endpoint state from previous connections
+            try:
+                if self.EP_OUT is not None:
+                    usb.util.clear_halt(self.device, self.EP_OUT)
+            except Exception:
+                pass
+            try:
+                if self.EP_IN is not None:
+                    usb.util.clear_halt(self.device, self.EP_IN)
+            except Exception:
+                pass
             self.connected = True
             return True
         print("Couldn't find CDC interface. Aborting.")
