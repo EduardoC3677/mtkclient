@@ -367,6 +367,8 @@ class Chipconfig:
     dacode = None
     damode = None
     loader = None
+    custom_da = None
+    custom_da_brom = None
     misc_lock = None
     efuse_addr = None
     has64bit = False
@@ -378,7 +380,8 @@ class Chipconfig:
                  meid_addr=None, socid_addr=None, blacklist=(), blacklist_count=None,
                  send_ptr=None, ctrl_buffer=(), cmd_handler=None, brom_register_access=None,
                  damode=DAmodes.LEGACY, loader=None, prov_addr=None, misc_lock=None,
-                 efuse_addr=None, has64bit=False, iot=False):
+                 efuse_addr=None, has64bit=False, iot=False,
+                 custom_da=None, custom_da_brom=None):
         self.iot = iot
         self.var1 = var1
         self.watchdog = watchdog
@@ -406,6 +409,8 @@ class Chipconfig:
         self.dacode = dacode
         self.damode = damode
         self.loader = loader
+        self.custom_da = custom_da
+        self.custom_da_brom = custom_da_brom
         self.misc_lock = misc_lock
         self.efuse_addr = efuse_addr
         self.has64bit = has64bit
@@ -1458,7 +1463,9 @@ hwconfig = {
         dacode=0x6768,
         name="MT6768/MT6769",
         description="Helio P65/G85 k68v1",
-        loader="mt6768_payload.bin"),
+        loader="mt6768_payload.bin",
+        custom_da="MTK_DA_lamu.bin",
+        custom_da_brom="MTK_DA_lamulg.bin"),
     0x788: Chipconfig(
         var1=0xA,
         watchdog=0x10007000,
