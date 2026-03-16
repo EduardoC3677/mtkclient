@@ -226,7 +226,15 @@ class DAconfig(metaclass=LogBase):
                                 self.info(f"Using {mode}-mode DA: {os.path.basename(self.loader)}")
                                 break
             if self.da_loader is None:
+                # Skip mode-specific custom DAs intended for a different connection mode
+                skip_da = None
+                if not self.config.is_brom and self.config.chipconfig.custom_da_brom:
+                    skip_da = self.config.chipconfig.custom_da_brom
+                elif self.config.is_brom and self.config.chipconfig.custom_da:
+                    skip_da = self.config.chipconfig.custom_da
                 for loader in loaders:
+                    if skip_da and os.path.basename(str(loader.loader)) == skip_da:
+                        continue
                     if loader.hw_version <= self.config.hwver or self.config.hwver == 0:
                         if loader.sw_version <= self.config.swver or self.config.swver == 0:
                             if loader.v6:
