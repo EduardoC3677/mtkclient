@@ -57,6 +57,13 @@ class MTKTee:
         self.data = bytearray(sh.bytes(self.datalen))
 
 
+def split_by_n(seq, unit_count):
+    """A generator to divide a sequence into chunks of n units."""
+    while seq:
+        yield seq[:unit_count]
+        seq = seq[unit_count:]
+
+
 def find_binary(data, strf, pos=0):
     t = strf.split(b".")
     pre = 0
