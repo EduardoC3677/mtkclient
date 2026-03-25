@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import sys
 
-from mtk_api_base import init, connect  # noqa: F401 - re-exported as public API
+from mtk_api_base import init, connect
+
+__all__ = ['init', 'connect']
 
 
 def main():

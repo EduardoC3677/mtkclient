@@ -18,7 +18,8 @@ def init(preloader, loader, serialport=None):
     if preloader is not None:
         if os.path.exists(preloader):
             config.preloader_filename = preloader
-            config.preloader = open(config.preloader_filename, "rb").read()
+            with open(config.preloader_filename, "rb") as f:
+                config.preloader = f.read()
     mtk = Mtk(config=config, loglevel=loglevel, serialportname=serialport)
     return mtk
 

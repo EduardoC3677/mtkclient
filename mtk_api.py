@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from mtk_api_base import init, connect
 
+__all__ = ['init', 'connect']
+
 
 def main():
     mtk=init(preloader=None, loader=None)

@@ -5,6 +5,7 @@ These tests run in subprocesses to avoid stdout buffer detachment caused
 by the LogBase metaclass and colorama initialization.
 """
 import subprocess
+import pathlib
 import sys
 import unittest
 
@@ -13,7 +14,8 @@ def _run_snippet(code: str) -> subprocess.CompletedProcess:
     """Run a Python snippet in a subprocess and return the result."""
     return subprocess.run(
         [sys.executable, "-c", code],
-        capture_output=True, text=True, cwd="/home/runner/work/mtkclient/mtkclient"
+        capture_output=True, text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parent.parent)
     )
 
 
