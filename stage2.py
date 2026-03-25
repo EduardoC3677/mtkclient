@@ -19,6 +19,22 @@ from mtkclient.config.mtk_config import MtkConfig
 from mtkclient.config.usb_ids import default_ids
 
 
+# Stage2 USB protocol constants
+STAGE2_MAGIC = 0xf00dd00d
+CMD_WRITE = 0x4000
+CMD_JUMP = 0x4001
+CMD_READ = 0x4002
+CMD_CLEAR_CACHE = 0x5000
+CMD_EMMC_READ = 0x1000
+CMD_EMMC_SWITCH = 0x1002
+CMD_RPMB_READ = 0x2000
+CMD_REBOOT = 0x3000
+CMD_EMMC_INIT = 0x6000
+CMD_EMMC_INIT_ALT = 0x6001
+ACK_OK = 0xD0D0D0D0
+ACK_EMMC_INIT_OK = 0xD1D1D1D1
+
+
 class Stage2(metaclass=LogBase):
     def __init__(self, args, loglevel=logging.INFO):
         self.hwcrypto = None
@@ -50,7 +66,7 @@ class Stage2(metaclass=LogBase):
     def preinit(self):
         try:
             hwcode = self.read32(0x8000000)
-        except:
+        except Exception:
             print("Error reading hwcode...aborting.")
             return False
         self.config = MtkConfig(self.loglevel)
@@ -69,31 +85,31 @@ class Stage2(metaclass=LogBase):
         return True
 
     def init_emmc(self):
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x6001))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_EMMC_INIT_ALT))
         if unpack("<I", self.usbread(4))[0] != 0x1:
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x6000))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_EMMC_INIT))
             time.sleep(2)
-            if unpack("<I", self.usbread(4))[0] == 0xD1D1D1D1:
+            if unpack("<I", self.usbread(4))[0] == ACK_EMMC_INIT_OK:
                 return True
             self.emmc_inited = True
         return False
 
     def jump(self, addr):
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x4001))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_JUMP))
         self.usbwrite(pack(">I", addr))
         time.sleep(5)
-        if unpack("<I", self.usbread(4))[0] == 0xD0D0D0D0:
+        if unpack("<I", self.usbread(4))[0] == ACK_OK:
             return True
         return False
 
     def read32(self, addr, dwords=1):
         result = []
         for pos in range(dwords):
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x4002))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_READ))
             self.usbwrite(pack(">I", addr + (pos * 4)))
             self.usbwrite(pack(">I", 4))
             result.append(unpack("<I", self.usbread(4))[0])
@@ -107,14 +123,14 @@ class Stage2(metaclass=LogBase):
         if isinstance(dwords, int):
             dwords = [dwords]
         for pos in range(0, len(dwords)):
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x4000))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_WRITE))
             self.usbwrite(pack(">I", addr + (pos * 4)))
             self.usbwrite(pack(">I", 4))
             self.usbwrite(pack("<I", dwords[pos]))
             # print(f"W:{hex(addr)}={hex(dwords[pos])}")
             # sys.stdout.flush()
-            if self.usbread(4) == b"\xD0\xD0\xD0\xD0":
+            if self.usbread(4) == pack(">I", ACK_OK):
                 continue
             else:
                 return False
@@ -122,9 +138,9 @@ class Stage2(metaclass=LogBase):
 
     def cmd_C8(self, val) -> bool:
         """Clear cache func"""
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x5000))
-        if self.usbread(4) == b"\xD0\xD0\xD0\xD0":
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_CLEAR_CACHE))
+        if self.usbread(4) == pack(">I", ACK_OK):
             return True
         return False
 
@@ -148,20 +164,18 @@ class Stage2(metaclass=LogBase):
         sectors += (1 if length % 0x200 else 0)
         startsector = (start // 0x200)
         # emmc_switch(1)
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x1002))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_EMMC_SWITCH))
         self.usbwrite(pack(">I", type_))
 
         # kick-wdt
-        # self.usbwrite(pack(">I", 0xf00dd00d))
+        # self.usbwrite(pack(">I", STAGE2_MAGIC))
         # self.usbwrite(pack(">I", 0x3001))
 
         bytestoread = length
-        bytesread = 0
-        old = 0
         # emmc_read(0)
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x1000))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_EMMC_READ))
         self.usbwrite(pack(">I", startsector))
         self.usbwrite(pack(">I", sectors))
 
@@ -172,7 +186,6 @@ class Stage2(metaclass=LogBase):
                 return
             if display:
                 pg.update(len(tmp))
-            bytesread += len(tmp)
             size = min(bytestoread, len(tmp))
             if wf is not None:
                 wf.write(tmp[:size])
@@ -187,9 +200,6 @@ class Stage2(metaclass=LogBase):
             return buffer[start % 0x200:(start % 0x200) + length]
 
     def userdata(self, start=0, length=32 * 0x200, filename="data.bin"):
-        sectors = 0
-        if length != 0:
-            sectors = (length // 0x200) + (1 if length % 0x200 else 0)
         self.info("Reading user data...")
         if self.cdc.connected:
             self.readflash(type_=0, start=start, length=length, display=True, filename=filename)
@@ -262,8 +272,8 @@ class Stage2(metaclass=LogBase):
             wf = open(filename, "wb")
         while bytestoread > 0:
             size = min(bytestoread, 0x100)
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x4002))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_READ))
             self.usbwrite(pack(">I", addr + pos))
             self.usbwrite(pack(">I", size))
             if filename is None:
@@ -292,8 +302,8 @@ class Stage2(metaclass=LogBase):
         pos = 0
         while bytestowrite > 0:
             size = min(bytestowrite, 0x100)
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x4000))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_WRITE))
             self.usbwrite(pack(">I", addr + pos))
             self.usbwrite(pack(">I", size))
             if filename is None:
@@ -309,15 +319,12 @@ class Stage2(metaclass=LogBase):
         if filename is not None:
             rf.close()
         ack = self.usbread(4)
-        return ack == b"\xD0\xD0\xD0\xD0"
+        return ack == pack(">I", ACK_OK)
 
     def rpmb(self, start, length, filename, reverse=False):
-        pg = progress(pagesize=0x100,total=length)
         if not self.emmc_inited:
             self.init_emmc()
-        if start == 0:
-            start = 0
-        else:
+        if start != 0:
             start = (start // 0x100)
         if start > 0xFFFF:
             start = 0xFFFF
@@ -327,24 +334,22 @@ class Stage2(metaclass=LogBase):
             sectors = (length // 0x100) + (1 if length % 0x100 else 0)
         self.info("Reading rpmb...")
 
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x1002))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_EMMC_SWITCH))
         self.usbwrite(pack(">I", 0x1))
 
         # kick-wdt
-        # self.usbwrite(pack(">I", 0xf00dd00d))
+        # self.usbwrite(pack(">I", STAGE2_MAGIC))
         # self.usbwrite(pack(">I", 0x3001))
 
-        bytesread = 0
-        old = 0
         bytestoread = sectors * 0x100
         count = sectors
-        pg = progress(pagesize=0x200,total=bytestoread)
+        pg = progress(pagesize=0x200, total=bytestoread)
         if sectors > 0xFFFF:
             count = 0xFFFF
         with open(filename, "wb") as wf:
-            self.usbwrite(pack(">I", 0xf00dd00d))
-            self.usbwrite(pack(">I", 0x2000))
+            self.usbwrite(pack(">I", STAGE2_MAGIC))
+            self.usbwrite(pack(">I", CMD_RPMB_READ))
             self.usbwrite(pack(">H", start))
             self.usbwrite(pack(">H", count))
             for sector in range(count):
@@ -355,13 +360,12 @@ class Stage2(metaclass=LogBase):
                     self.error("Error on getting data")
                     return
                 pg.update(len(tmp))
-                bytesread += 0x100
                 size = min(bytestoread, len(tmp))
                 wf.write(tmp[:size])
                 bytestoread -= size
             while bytestoread > 0:
-                self.usbwrite(pack(">I", 0xf00dd00d))
-                self.usbwrite(pack(">I", 0x2000))
+                self.usbwrite(pack(">I", STAGE2_MAGIC))
+                self.usbwrite(pack(">I", CMD_RPMB_READ))
                 self.usbwrite(pack(">H", sector + 1))
                 self.usbwrite(pack(">H", 1))
                 tmp = self.usbread(0x100)
@@ -388,7 +392,7 @@ class Stage2(metaclass=LogBase):
                     self.config.set_meid(meid)
                     self.info(f"MEID        : {hexlify(meid).decode('utf-8')}")
                     retval["meid"] = hexlify(meid).decode('utf-8')
-            except Exception as err:
+            except Exception:
                 pass
         if socid is not None:
             self.info(f"SOCID        : {hexlify(socid).decode('utf-8')}")
@@ -400,7 +404,7 @@ class Stage2(metaclass=LogBase):
                     self.config.set_socid(socid)
                     self.info(f"SOCID        : {hexlify(socid).decode('utf-8')}")
                     retval["socid"] = hexlify(socid).decode('utf-8')
-            except Exception as err:
+            except Exception:
                 pass
         if self.setup.dxcc_base is not None and mode not in ["sej_aes_decrypt", "sej_aes_encrypt", "sej_sst_decrypt_4g",
                                                              "sej_sst_decrypt_5g", "sej_sst_encrypt_5g",
@@ -440,9 +444,10 @@ class Stage2(metaclass=LogBase):
                 self.config.hwparam.writesetting("provkey", hexlify(provkey).decode('utf-8'))
                 retval["provkey"] = hexlify(provkey).decode('utf-8')
             return retval, keyinfo
-        elif self.setup.sej_base is not None and mode not in ["sej_aes_decrypt", "sej_aes_encrypt", "sej_sst_decrypt_4g",
-                                                             "sej_sst_decrypt_5g", "sej_sst_encrypt_5g",
-                                                             "sej_sst_encrypt_4g", "dxcc_sha256"]:
+        elif self.setup.sej_base is not None and mode not in [
+                "sej_aes_decrypt", "sej_aes_encrypt", "sej_sst_decrypt_4g",
+                "sej_sst_decrypt_5g", "sej_sst_encrypt_5g",
+                "sej_sst_encrypt_4g", "dxcc_sha256"]:
             retval = {}
             rpmbkey = self.hwcrypto.aes_hwcrypt(mode="rpmb", data=meid, otp=otp, btype="sej")
             if rpmbkey:
@@ -498,8 +503,8 @@ class Stage2(metaclass=LogBase):
 
     def reboot(self):
         print("Rebooting..")
-        self.usbwrite(pack(">I", 0xf00dd00d))
-        self.usbwrite(pack(">I", 0x3000))
+        self.usbwrite(pack(">I", STAGE2_MAGIC))
+        self.usbwrite(pack(">I", CMD_REBOOT))
 
 
 def getint(valuestr):
@@ -507,12 +512,10 @@ def getint(valuestr):
         return None
     try:
         return int(valuestr)
-    except Exception as err:
-        err = err
+    except (ValueError, TypeError):
         try:
             return int(valuestr, 16)
-        except Exception as err:
-            err = err
+        except (ValueError, TypeError):
             pass
     return 0
 
@@ -586,7 +589,7 @@ def main():
     parser_memwrite.add_argument('data', type=str,
                                  help='Data to write [hexstring, dword or filename]')
 
-    parser_reboot = subparsers.add_parser("reboot", help="Reboot device")
+    subparsers.add_parser("reboot", help="Reboot device")
 
     parser_seccfg = subparsers.add_parser("seccfg", help="Generate seccfg")
     parser_seccfg.add_argument('flag', type=str,
@@ -681,8 +684,8 @@ def main():
         elif cmd == "keys":
             keyinfo = ""
             data = b""
-            if args.mode in ["sej_aes_decrypt", "sej_aes_encrypt", "sej_sst_decrypt_5g","sej_sst_decrypt_4g",
-                             "sej_sst_encrypt_4g","sej_sst_encrypt_5g"]:
+            if args.mode in ["sej_aes_decrypt", "sej_aes_encrypt", "sej_sst_decrypt_5g", "sej_sst_decrypt_4g",
+                             "sej_sst_encrypt_4g", "sej_sst_encrypt_5g"]:
                 if not args.data:
                     print("Option --data is needed")
                     exit(0)

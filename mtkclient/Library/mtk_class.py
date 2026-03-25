@@ -38,85 +38,52 @@ class Mtk(metaclass=LogBase):
         if preinit:
             self.setup(self.vid, self.pid, self.interface, serialportname)
 
-    def patch_preloader_security_da1(self, data):
+    # Common preloader security patches shared between DA1 and DA2
+    _COMMON_PATCHES = [
+        ("A3687BB12846", "0123A3602846", "oppo security"),
+        ("B3F5807F01D1", "B3F5807F01D14FF000004FF000007047", "mt6739 c30"),
+        ("B3F5807F04BF4FF4807305F011B84FF0FF307047", "B3F5807F04BF4FF480734FF000004FF000007047", "regular"),
+        ("10B50C680268", "10B5012010BD", "ram blacklist"),
+        ("08B5104B7B441B681B68", "00207047000000000000", "seclib_sec_usbdl_enabled"),
+        ("5072656C6F61646572205374617274", "50617463686564204C205374617274", "Patched loader msg"),
+        ("F0B58BB002AE20250C460746", "002070470000000000205374617274", "sec_img_auth"),
+        ("FFC0F3400008BD", "FF4FF0000008BD", "get_vfy_policy"),
+    ]
+
+    # Additional patches only applied in DA1
+    _DA1_EXTRA_PATCHES = [
+        ("040007C0", "00000000", "hash_check"),
+        ("CCF20709", "4FF00009", "hash_check2"),
+        (b"\x14\x2C\xF6.\xFE\xE7", b"\x00\x00\x00\x00\x00\x00", "hash_check3"),
+    ]
+
+    def _apply_preloader_patches(self, data, patches):
         patched = False
         data = bytearray(data)
-        patches = [
-            ("A3687BB12846", "0123A3602846", "oppo security"),
-            ("B3F5807F01D1", "B3F5807F01D14FF000004FF000007047", "mt6739 c30"),
-            ("B3F5807F04BF4FF4807305F011B84FF0FF307047", "B3F5807F04BF4FF480734FF000004FF000007047", "regular"),
-            ("10B50C680268", "10B5012010BD", "ram blacklist"),
-            ("08B5104B7B441B681B68", "00207047000000000000", "seclib_sec_usbdl_enabled"),
-            ("5072656C6F61646572205374617274", "50617463686564204C205374617274", "Patched loader msg"),
-            ("F0B58BB002AE20250C460746", "002070470000000000205374617274", "sec_img_auth"),
-            ("FFC0F3400008BD", "FF4FF0000008BD", "get_vfy_policy"),
-            ("040007C0", "00000000", "hash_check"),
-            ("CCF20709", "4FF00009", "hash_check2"),
-            (b"\x14\x2C\xF6.\xFE\xE7", b"\x00\x00\x00\x00\x00\x00", "hash_check3")
-        ]
-        i = 0
-        for patchval in patches:
-            if type(patchval[0]) is bytes:
-                idx = find_binary(data, patchval[0])
-                if idx is None:
-                    idx = -1
-                else:
-                    data[idx:idx + len(patchval)] = patchval
-                    self.info(f'Patched "{patchval[2]}" in preloader')
+        for search, replace, name in patches:
+            if isinstance(search, bytes):
+                idx = find_binary(data, search)
+                if idx is not None:
+                    data[idx:idx + len(replace)] = replace
+                    self.info(f'Patched "{name}" in preloader')
                     patched = True
             else:
-                pattern = bytes.fromhex(patchval[0])
+                pattern = bytes.fromhex(search)
                 idx = data.find(pattern)
                 if idx != -1:
-                    patch = bytes.fromhex(patchval[1])
+                    patch = bytes.fromhex(replace)
                     data[idx:idx + len(patch)] = patch
-                    self.info(f'Patched "{patchval[2]}" in preloader')
+                    self.info(f'Patched "{name}" in preloader')
                     patched = True
-                    # break
-            i += 1
         if not patched:
             self.warning("Failed to patch preloader security")
-        else:
-            # with open("preloader.patched", "wb") as wf:
-            #    wf.write(data)
-            #    print("Patched !")
-            # self.info(f"Patched preloader security: {hex(i)}")
-            data = data
         return data
 
+    def patch_preloader_security_da1(self, data):
+        return self._apply_preloader_patches(data, self._COMMON_PATCHES + self._DA1_EXTRA_PATCHES)
+
     def patch_preloader_security_da2(self, data):
-        patched = False
-        data = bytearray(data)
-        patches = [
-            ("A3687BB12846", "0123A3602846", "oppo security"),
-            ("B3F5807F01D1", "B3F5807F01D14FF000004FF000007047", "mt6739 c30"),
-            ("B3F5807F04BF4FF4807305F011B84FF0FF307047", "B3F5807F04BF4FF480734FF000004FF000007047", "regular"),
-            ("10B50C680268", "10B5012010BD", "ram blacklist"),
-            ("08B5104B7B441B681B68", "00207047000000000000", "seclib_sec_usbdl_enabled"),
-            ("5072656C6F61646572205374617274", "50617463686564204C205374617274", "Patched loader msg"),
-            ("F0B58BB002AE20250C460746", "002070470000000000205374617274", "sec_img_auth"),
-            ("FFC0F3400008BD", "FF4FF0000008BD", "get_vfy_policy")
-        ]
-        i = 0
-        for patchval in patches:
-            pattern = bytes.fromhex(patchval[0])
-            idx = data.find(pattern)
-            if idx != -1:
-                patch = bytes.fromhex(patchval[1])
-                data[idx:idx + len(patch)] = patch
-                self.info(f'Patched "{patchval[2]}" in preloader')
-                patched = True
-                # break
-            i += 1
-        if not patched:
-            self.warning("Failed to patch preloader security")
-        else:
-            # with open("preloader.patched", "wb") as wf:
-            #    wf.write(data)
-            #    print("Patched !")
-            # self.info(f"Patched preloader security: {hex(i)}")
-            data = data
-        return data
+        return self._apply_preloader_patches(data, self._COMMON_PATCHES)
 
     def parse_preloader(self, preloader):
         if isinstance(preloader, str):
