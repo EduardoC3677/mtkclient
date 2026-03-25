@@ -3,6 +3,7 @@ __pycache__
 *.pyc
 .idea
 DA_*.bin
+.pytest_cache
 
 # Setuptools distribution folder.
 /dist/

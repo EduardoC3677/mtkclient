@@ -731,7 +731,7 @@ class Main(metaclass=LogBase):
             "plstage": lambda: self._cmd_plstage(mtk, loglevel),
             "peek": lambda: self._cmd_peek_dispatch(mtk),
             "stage": lambda: self._cmd_stage_dispatch(mtk),
-            "payload": lambda: self.cmd_payload(mtk=mtk, payloadfile=self.args.payload),
+            "payload": lambda: self.cmd_payload(mtk=mtk, payloadfile=ArgHandler._safe_get_arg(self.args, 'payload')),
             "gettargetconfig": lambda: self._cmd_gettargetconfig(mtk),
             "logs": lambda: self._cmd_logs(mtk),
             "meta": lambda: self._cmd_meta(mtk, loglevel),
