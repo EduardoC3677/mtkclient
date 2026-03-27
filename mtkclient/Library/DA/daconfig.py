@@ -205,7 +205,23 @@ class DAconfig(metaclass=LogBase):
 
     def setup(self):
         dacode = self.config.chipconfig.dacode
-        if dacode in self.dasetup:
+        custom_da = getattr(self.config.chipconfig, 'custom_da', None)
+        if custom_da is not None:
+            custom_path = os.path.join(self.pathconfig.get_loader_path(), custom_da)
+            if os.path.exists(custom_path):
+                custom_setup = {}
+                self.parse_da_loader(custom_path, custom_setup)
+                if dacode in custom_setup:
+                    for loader in custom_setup[dacode]:
+                        if loader.hw_version <= self.config.hwver or self.config.hwver == 0:
+                            if loader.sw_version <= self.config.swver or self.config.swver == 0:
+                                if loader.v6:
+                                    self.config.chipconfig.damode = DAmodes.XML
+                                self.da_loader = loader
+                                self.loader = loader.loader
+                                self.info(f"Using chip-specific DA: {custom_da}")
+                                break
+        if self.da_loader is None and dacode in self.dasetup:
             loaders = self.dasetup[dacode]
             for loader in loaders:
                 if loader.hw_version <= self.config.hwver or self.config.hwver == 0:

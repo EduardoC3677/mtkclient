@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 import time
+import usb.util
 from binascii import hexlify
 from struct import pack
 from mtkclient.Library.gui_utils import LogBase, logsetup
@@ -125,31 +126,36 @@ class Port(metaclass=LogBase):
                 pass
         return False
 
-    def run_handshake(self, retries=5):
+    def run_handshake(self, retries=10):
         ep_out = self.cdc.EP_OUT.write
         ep_in = self.cdc.EP_IN.read
         maxinsize = self.cdc.EP_IN.wMaxPacketSize
 
         self.cdc.set_line_coding(921600, 0, 8, 1)
-        self.cdc.setcontrollinestate(rts=True)
+        self.cdc.setcontrollinestate(rts=True, dtr=True)
 
         startcmd = b"\xa0\x0a\x50\x05"
         expected_echo = bytes(~b & 0xFF for b in startcmd)  # Precompute: b'\x5f\xf5\xaf\xfa'
 
         brom_pids = [0x3, 0xF200, 0xD1E9, 0xD1E2, 0xD1EC, 0xD1DD]
         if self.cdc.pid not in brom_pids:
-            ep_out(b"\xa0")  # Send first byte separately if needed
+            try:
+                ep_out(b"\xa0")  # Send wake-up byte for preloader
+                time.sleep(0.05)
+                ep_in(maxinsize, timeout=200)  # Flush wake-up response
+            except Exception:
+                pass
 
         for attempt in range(retries):
             received = b""
             try:
                 for byte in startcmd:
-                    written = ep_out(bytes([byte]), timeout=500)  # Explicit timeout
+                    written = ep_out(bytes([byte]), timeout=1000)
                     if written != 1:
                         raise ValueError("Write failed")
 
                     # Read exactly 1 echo byte (fastest)
-                    echo = ep_in(1, timeout=500)
+                    echo = ep_in(1, timeout=1000)
                     if len(echo) != 1 or echo[0] != (~byte & 0xFF):
                         raise ValueError(f"Echo mismatch: got {echo!r}, expected {~byte & 0xFF:02x}")
 
@@ -161,15 +167,25 @@ class Port(metaclass=LogBase):
 
             except Exception as e:  # Includes USBError, timeout, pipe error
                 self.debug(f"Handshake attempt {attempt + 1} failed: {e}")
-                time.sleep(0.01)  # Short backoff
+                # Clear endpoint halt/stall state after I/O error
+                try:
+                    usb.util.clear_halt(self.cdc.device, self.cdc.EP_OUT)
+                    usb.util.clear_halt(self.cdc.device, self.cdc.EP_IN)
+                except Exception:
+                    pass
+                time.sleep(0.05)
 
-            # Optional: flush input buffer before retry
+            # Flush input buffer before retry
             try:
-                ep_in(maxinsize, timeout=50)  # Discard any stale data
-            except:
+                ep_in(maxinsize, timeout=100)  # Discard any stale data
+            except Exception:
                 pass
 
         self.info("Handshake failed after retries")
+        if os.name == 'nt':
+            self.warning("On Windows, [Errno 5] Input/Output Error usually means the USB driver is not "
+                         "correctly installed. Use Zadig (https://zadig.akeo.ie/) to install the WinUSB "
+                         "driver for your MediaTek device. See README-WINDOWS.md for detailed instructions.")
         return False
 
     def handshake(self, maxtries=None, loop=0):
