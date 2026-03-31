@@ -593,7 +593,6 @@ class DAXML(metaclass=LogBase):
         if type(result) is DwnFile:
             self.info("Uploading stage 2...")
             if self.upload(result, data):
-                self.info("Successfully uploaded stage 2.")
                 return True
         else:
             self.error("Wrong boot_to response :(")
@@ -652,7 +651,7 @@ class DAXML(metaclass=LogBase):
                 # Unprotected and patched OR stock option
                 loaded = self.boot_to(da2offset, da2)
             if loaded:
-                self.info("Successfully uploaded stage 2")
+                self.info("Successfully booted to stage 2")
                 self.setup_hw_init()
                 self.change_usb_speed()
                 res = self.check_sla()

@@ -1177,6 +1177,7 @@ class DAXFlash(metaclass=LogBase):
                     else:
                         daextdata = None
                     if daextdata is not None:
+                        self.info("Starting DA extensions ...")
                         self.daext = False
                         if self.boot_to(addr=self.extensions_address, da=daextdata):
                             ret = self.send_devctrl(XCmd.CUSTOM_ACK)
