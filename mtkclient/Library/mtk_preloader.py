@@ -203,7 +203,7 @@ class Preloader(metaclass=LogBase):
                 self.info("\tCQ_DMA addr:\t\t" + hex(self.config.chipconfig.cqdma_base))
             self.info("\tVar1:\t\t\t" + hex(self.config.chipconfig.var1))
 
-        if not skipwdt:
+        if not skipwdt and not self.config.chipconfig.has64bit:
             if self.display:
                 self.info("Disabling Watchdog...")
             self.setreg_disablewatchdogtimer(self.config.hwcode, self.config.hwver)  # D4
@@ -242,7 +242,7 @@ class Preloader(metaclass=LogBase):
             self.config.set_meid(meid)
             if self.display:
                 self.info("ME_ID:\t\t\t" + hexlify(meid).decode('utf-8').upper())
-            if readsocid or self.config.chipconfig.socid_addr:
+            if readsocid or self.config.chipconfig.socid_addr or self.config.chipconfig.has64bit:
                 socid = self.get_socid()
                 if len(socid) >= 16:
                     self.config.set_socid(socid)

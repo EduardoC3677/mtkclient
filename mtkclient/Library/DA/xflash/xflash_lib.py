@@ -910,7 +910,12 @@ class DAXFlash(metaclass=LogBase):
         """ XFlash Setup environment command """
         if self.xsend(self.cmd.SETUP_ENVIRONMENT):
             da_log_level = int(self.daconfig.uartloglevel)
-            log_channel = 1
+            if self.daconfig.logchannel == "UART":
+                log_channel = 1
+            elif self.daconfig.logchannel == "USB":
+                log_channel = 2
+            elif self.daconfig.logchannel == "BOTH":
+                log_channel = 3
             system_os = self.ft_system_ose.OS_LINUX
             ufs_provision = 0x0
             param = pack("<IIIII", da_log_level, log_channel, system_os, ufs_provision, 0x0)

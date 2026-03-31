@@ -114,7 +114,7 @@ class DaHandler(metaclass=LogBase):
         mtk.port.cdc.connected = mtk.port.cdc.connect()
         if mtk.port.cdc.connected is None or not mtk.port.cdc.connected or mtk.serialportname is not None:
             mtk.preloader.init(directory=directory)
-            if self.config.internal_flash:
+            if self.config.internal_flash and self.mtk.config.iot:
                 offset = self.mtk.offset
                 length = self.mtk.length
                 step = self.mtk.step

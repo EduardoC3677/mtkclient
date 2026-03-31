@@ -17,6 +17,12 @@ Dump preloader via
 python mtk.py dumppreloader
 ```
 
+Changing uart to usb logging to see more log details in DA (XML only):
+```shell
+python mtk.py printgpt --logchannel="USB"
+```
+
+
 alternatively take the preloader from firmware
 
 ### Using preloader mode exploit :

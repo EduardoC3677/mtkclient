@@ -6,6 +6,7 @@ import sys
 
 from Cryptodome.Cipher import AES
 
+from mtkclient.Library.Hardware.hwcrypto_ssr import SSR
 from mtkclient.Library.mtk_crypto import decrypt_nvitem, encrypt_nvitem
 from mtkclient.Library.gui_utils import LogBase, logsetup
 from mtkclient.Library.Hardware.hwcrypto_gcpu import GCpu
@@ -30,12 +31,15 @@ class CryptoSetup:
     socid_addr = None
     prov_addr = None
     efuse_base = None
+    ssr_base = None
+    ssr_clk_base = None
 
 
 class HwCrypto(metaclass=LogBase):
     def __init__(self, setup, loglevel=logging.INFO, gui: bool = False):
         self.__logger, self.info, self.debug, self.warning, self.error = logsetup(self, self.__logger, loglevel, gui)
         self.dxcc = Dxcc(setup, loglevel, gui)
+        self.ssr = SSR(setup, loglevel, gui)
         self.gcpu = GCpu(setup, loglevel, gui)
         self.sej = Sej(setup, loglevel)
         self.cqdma = Cqdma(setup, loglevel)
@@ -126,6 +130,9 @@ class HwCrypto(metaclass=LogBase):
                 return self.dxcc.generate_provision_key()
             elif mode == "sha256":
                 return self.dxcc.generate_sha256(data=data)
+        elif btype == "ssr":
+            if mode == "rpmb":
+                return self.ssr.generate_rpmb()
         else:
             self.error(f"Unknown aes_hwcrypt type: {btype}")
             self.error("aes_hwcrypt supported types are: sej")

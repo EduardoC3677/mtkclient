@@ -78,6 +78,8 @@ class MtkConfig(metaclass=LogBase):
             self.__logger.setLevel(logging.INFO)
         self.reconnect = True
         self.uartloglevel = 2
+        self.logchannel = "UART"
+        self.uartlog = []
         self.hwver = 0xca00
         self.swver = 0
 
@@ -212,6 +214,8 @@ class MtkConfig(metaclass=LogBase):
                 return [wdt, 0x2264]
             elif wdt == 0xA0030000:
                 return [wdt, 0x2200]
+            elif wdt == 0x1C00A000:
+                return [wdt, 0x22000064]
             elif wdt == 0x2200:
                 if self.hwcode == 0x6276 or self.hwcode == 0x8163:
                     return [wdt, 0x610C0000]

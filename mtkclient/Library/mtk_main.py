@@ -61,6 +61,13 @@ class ArgHandler(metaclass=LogBase):
                 config.uartloglevel = args.uartloglevel
         except AttributeError:
             pass
+        config.logchannel = "UART"
+        try:
+            if args.logchannel is not None:
+                config.logchannel = args.logchannel
+        except AttributeError:
+            pass
+
         try:
             if args.payload is not None:
                 config.payloadfile = args.payload
@@ -730,6 +737,11 @@ class Main(metaclass=LogBase):
                 if mtk is not None:
                     self.info("Handling da commands ...")
                     da_handler.handle_da_cmds(mtk, cmd, self.args)
+                    if len(mtk.config.uartlog)>0:
+                        with open("uartlog.txt","w") as wf:
+                            for line in mtk.config.uartlog:
+                                wf.write(line)
+                        print("Uart Log written to uartlog.txt")
                     mtk.port.close()
             self.close()
 

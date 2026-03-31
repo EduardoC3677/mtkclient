@@ -460,7 +460,9 @@ class UsbClass(DeviceClass):
         return self.EP_OUT.wMaxPacketSize
 
     def usbread(self, resplen=None, maxtimeout=100, w_max_packet_size=None):
+        endearly = False
         if resplen is None:
+            endearly = True
             resplen = self.maxsize
         if resplen <= 0:
             self.info("Warning !")
@@ -504,6 +506,8 @@ class UsbClass(DeviceClass):
                     dt = epr(sz)
                     rlen = len(dt)
                     extend(dt)
+                    if endearly and rlen!=0:
+                        break
                     if rlen < sz and maxtimeout == -1:
                         break
             except usb.core.USBError as e:
